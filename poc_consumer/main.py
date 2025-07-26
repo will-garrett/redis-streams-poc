@@ -5,8 +5,6 @@ import time
 import logging
 from faststream import FastStream
 from faststream.redis import RedisBroker
-
-# OpenTelemetry imports
 from opentelemetry import trace, metrics
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
@@ -90,59 +88,6 @@ messages_processed_counter = meter.create_counter(
     name="messages_processed_total",
     description="Total number of messages processed"
 )
-
-@app.on_startup
-async def startup():
-    """Start the producer when the app starts"""
-    start_time = time.time()
-    print(f"[{start_time}] Consumer {consumer_id} startup function called")
-    logger.info(f"Consumer {consumer_id} startup function called")
-    
-    # Wait for broker to be ready
-    try:
-        print(f"[{time.time()}] Waiting for broker to be ready...")
-        await broker.connect()
-        print(f"[{time.time()}] Broker connected successfully")
-        logger.info("Broker connected successfully")
-    except Exception as e:
-        print(f"[{time.time()}] Broker connection failed: {e}")
-        logger.error(f"Broker connection failed: {e}")
-        raise
-    
-    try:
-        print(f"[{time.time()}] Testing Redis connection...")
-        await broker._connection.ping()
-        print(f"[{time.time()}] Redis connection successful")
-        logger.info("Redis connection successful")
-    except Exception as e:
-        print(f"[{time.time()}] Redis connection failed: {e}")
-        logger.error(f"Redis connection failed: {e}")
-        raise
-    
-    try:
-        print(f"[{time.time()}] Creating consumer group...")
-        # Create consumer group if it doesn't exist
-        await broker._connection.xgroup_create("number_stream", "consumer_group", id="0", mkstream=True)
-        print(f"[{time.time()}] Consumer group created successfully")
-        logger.info("Consumer group created successfully")
-    except Exception as e:
-        print(f"[{time.time()}] Consumer group creation failed (might already exist): {e}")
-        logger.warning(f"Consumer group creation failed (might already exist): {e}")
-    
-    try:
-        print(f"[{time.time()}] Starting consumer group reader task...")
-        # Start the consumer group reader as a background task
-        task = asyncio.create_task(consume_with_group())
-        print(f"[{time.time()}] Consumer group reader task started")
-        logger.info("Consumer group reader task started")
-    except Exception as e:
-        print(f"[{time.time()}] Error starting consumer group reader task: {e}")
-        logger.error(f"Error starting consumer group reader task: {e}")
-        raise
-    
-    end_time = time.time()
-    print(f"[{end_time}] Consumer {consumer_id} startup completed in {end_time - start_time:.2f} seconds")
-    logger.info(f"Consumer {consumer_id} startup completed in {end_time - start_time:.2f} seconds")
 
 async def consume_with_group():
     """Consume messages using Redis consumer groups for load balancing"""
@@ -239,21 +184,72 @@ async def consume_with_group():
                             else:
                                 print(f"[{time.time()}] Message {message_id} has no 'data' field")
                                 logger.warning(f"Message {message_id} has no 'data' field")
-                                print(f"[{time.time()}] Available fields: {list(fields.keys())}")
-                                logger.warning(f"Available fields: {list(fields.keys())}")
                 
+                # Log loop timing
                 loop_end = time.time()
-                if loop_end - loop_start > 1.0:
-                    print(f"[{time.time()}] Loop iteration took {loop_end - loop_start:.2f} seconds")
-                    logger.warning(f"Loop iteration took {loop_end - loop_start:.2f} seconds")
-                            
+                loop_duration = loop_end - loop_start
+                if loop_duration > 1.0:
+                    print(f"[{loop_end}] Loop iteration took {loop_duration:.2f} seconds")
+                    logger.warning(f"Loop iteration took {loop_duration:.2f} seconds")
+                
             except Exception as e:
-                print(f"[{time.time()}] Error reading messages: {e}")
-                logger.error(f"Error reading messages: {e}")
+                print(f"[{time.time()}] Error in consume loop: {e}")
+                logger.error(f"Error in consume loop: {e}")
                 span.record_exception(e)
-                import traceback
-                traceback.print_exc()
-                await asyncio.sleep(1)
+                await asyncio.sleep(1)  # Wait a bit before retrying
+
+@app.on_startup
+async def startup():
+    """Start the producer when the app starts"""
+    start_time = time.time()
+    print(f"[{start_time}] Consumer {consumer_id} startup function called")
+    logger.info(f"Consumer {consumer_id} startup function called")
+    
+    # Wait for broker to be ready
+    try:
+        print(f"[{time.time()}] Waiting for broker to be ready...")
+        await broker.connect()
+        print(f"[{time.time()}] Broker connected successfully")
+        logger.info("Broker connected successfully")
+    except Exception as e:
+        print(f"[{time.time()}] Broker connection failed: {e}")
+        logger.error(f"Broker connection failed: {e}")
+        raise
+    
+    try:
+        print(f"[{time.time()}] Testing Redis connection...")
+        await broker._connection.ping()
+        print(f"[{time.time()}] Redis connection successful")
+        logger.info("Redis connection successful")
+    except Exception as e:
+        print(f"[{time.time()}] Redis connection failed: {e}")
+        logger.error(f"Redis connection failed: {e}")
+        raise
+    
+    try:
+        print(f"[{time.time()}] Creating consumer group...")
+        # Create consumer group if it doesn't exist
+        await broker._connection.xgroup_create("number_stream", "consumer_group", id="0", mkstream=True)
+        print(f"[{time.time()}] Consumer group created successfully")
+        logger.info("Consumer group created successfully")
+    except Exception as e:
+        print(f"[{time.time()}] Consumer group creation failed (might already exist): {e}")
+        logger.warning(f"Consumer group creation failed (might already exist): {e}")
+    
+    try:
+        print(f"[{time.time()}] Starting consumer group reader task...")
+        # Start the consumer group reader as a background task
+        task = asyncio.create_task(consume_with_group())
+        print(f"[{time.time()}] Consumer group reader task started")
+        logger.info("Consumer group reader task started")
+    except Exception as e:
+        print(f"[{time.time()}] Error starting consumer group reader task: {e}")
+        logger.error(f"Error starting consumer group reader task: {e}")
+        raise
+    
+    end_time = time.time()
+    print(f"[{end_time}] Consumer {consumer_id} startup completed in {end_time - start_time:.2f} seconds")
+    logger.info(f"Consumer {consumer_id} startup completed in {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
     start_time = time.time()
