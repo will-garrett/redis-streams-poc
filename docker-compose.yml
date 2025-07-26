@@ -73,6 +73,10 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
+      - '--storage.tsdb.wal-compression'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.enable-admin-api'
+      - '--web.enable-remote-write-receiver'
     depends_on:
       - otel-collector
 
@@ -108,6 +112,16 @@ services:
       - ./consumer_output:/output
     deploy:
       replicas: 3
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    ports:
+      - "9121:9121"
+    command:
+      - '--redis.addr=redis://redis:6379'
+      - '--redis.password='
+    depends_on:
+      - redis
 
 volumes:
   redis_data:

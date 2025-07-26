@@ -5,4 +5,14 @@ datasources:
     type: prometheus
     access: proxy
     url: http://prometheus:9090
-    isDefault: true 
+    isDefault: true
+
+  - name: OTLP
+    type: grafana-otlp-datasource
+    access: proxy
+    url: http://otel-collector:4317
+    jsonData:
+      otlpVersion: "1.0.0"
+      httpMethod: "POST"
+      timeout: 30
+    secureJsonData: {} 
