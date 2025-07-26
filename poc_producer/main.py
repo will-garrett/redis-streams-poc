@@ -15,6 +15,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.semconv.resource import ResourceAttributes
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -22,16 +24,23 @@ logger = logging.getLogger(__name__)
 
 # Set up OpenTelemetry
 def setup_telemetry():
-    # Initialize tracing
-    trace.set_tracer_provider(TracerProvider())
-    tracer = trace.get_tracer(__name__)
+    # Create resource with service information
+    resource = Resource.create({
+        ResourceAttributes.SERVICE_NAME: "faststream-producer",
+        ResourceAttributes.SERVICE_VERSION: "1.0.0",
+        "service.instance.id": "producer-1"
+    })
     
-    # Initialize metrics
+    # Initialize tracing with resource
+    trace.set_tracer_provider(TracerProvider(resource=resource))
+    tracer = trace.get_tracer("faststream-producer")
+    
+    # Initialize metrics with resource
     metric_reader = PeriodicExportingMetricReader(
         OTLPMetricExporter(endpoint="http://otel-collector:4317")
     )
-    metrics.set_meter_provider(MeterProvider(metric_readers=[metric_reader]))
-    meter = metrics.get_meter(__name__)
+    metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=[metric_reader]))
+    meter = metrics.get_meter("faststream-producer")
     
     # Add span processor
     otlp_exporter = OTLPSpanExporter(endpoint="http://otel-collector:4317")
