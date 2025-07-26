@@ -5,7 +5,7 @@ A microservice application using Python FastStream and Redis with comprehensive 
 ## Architecture
 
 - **Producer**: Generates sequential messages and sends them to Redis Streams
-- **Consumer**: 2 scaled workers that consume messages using Redis Consumer Groups for load balancing
+- **Consumer**: 3 scaled workers that consume messages using Redis Consumer Groups for load balancing
 - **Redis**: Message broker using Redis Streams
 - **Redis Commander**: Web UI for Redis management
 - **OpenTelemetry Collector**: Collects traces and metrics
@@ -20,7 +20,7 @@ A microservice application using Python FastStream and Redis with comprehensive 
 | Redis | 6379 | Message broker |
 | Redis Commander | 8081 | Redis web UI |
 | Producer | 8000 | Message producer API |
-| Consumer | - | Message consumers (2 replicas) |
+| Consumer | - | Message consumers (3 replicas) |
 | OpenTelemetry Collector | 4317/4318/8889 | Telemetry collection |
 | Prometheus | 9090 | Metrics storage and API |
 | Jaeger | 16686 | Tracing UI |
@@ -133,10 +133,15 @@ docker-compose up -d
 
 ### Scale Consumers
 ```bash
-docker-compose up -d --scale consumer=3
+docker-compose up -d --scale consumer=5
 ```
 
 ### Stop All Services
 ```bash
 docker-compose down
+``` 
+
+### Stop All Services and clear volumes
+```bash
+docker-compose down -v
 ``` 
