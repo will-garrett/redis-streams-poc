@@ -127,7 +127,7 @@ async def produce_messages():
                 span.record_exception(e)
             
             counter += 1
-            await asyncio.sleep(0.05)  # Send one message every 50ms
+            await asyncio.sleep(0.1)  # Send one message every 100ms
 
 async def monitor_stream_cleanup():
     """Monitor stream cleanup and track metrics"""
